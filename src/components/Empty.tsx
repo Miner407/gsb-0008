@@ -6,11 +6,17 @@ interface EmptyProps {
   actionText?: string;
   onAction?: () => void;
   className?: string;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
-export default function Empty({ title, description, actionText, onAction, className }: EmptyProps) {
+export default function Empty({ title, description, actionText, onAction, className, icon: Icon }: EmptyProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center py-12 text-center', className)}>
+      {Icon && (
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 text-gray-400">
+          <Icon className="h-8 w-8" />
+        </div>
+      )}
       {title && <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>}
       {description && <p className="text-gray-500 mb-4 max-w-md">{description}</p>}
       {actionText && onAction && (
