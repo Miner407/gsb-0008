@@ -1,10 +1,168 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Users, CheckSquare, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Users, CheckSquare, Edit2, Trash2, ChevronLeft, ChevronRight, BarChart3, AlertTriangle, User, TrendingUp } from 'lucide-react';
 import { useMeetingStore } from '@/store/meetingStore';
 import { formatDate } from '@/services/api';
 import StatusBadge from '@/components/StatusBadge';
 import Empty from '@/components/Empty';
+
+function Dashboard() {
+  const navigate = useNavigate();
+  const { dashboardStats, fetchDashboardStats, loading } = useMeetingStore();
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
+
+  if (loading && !dashboardStats) {
+    return null;
+  }
+
+  if (!dashboardStats) {
+    return null;
+  }
+
+  const formatChartDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  };
+
+  const maxMeetings = Math.max(...dashboardStats.meetingsLast7Days.map((d) => d.count), 1);
+
+  return (
+    <div className="mb-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-indigo-600" />
+            统计概览
+          </h2>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-500">会议总数</p>
+            <Calendar className="h-4 w-4 text-indigo-500" />
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalMeetings}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-500">待办总数</p>
+            <CheckSquare className="h-4 w-4 text-blue-500" />
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalTodos}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-500">已完成待办</p>
+            <CheckSquare className="h-4 w-4 text-green-500" />
+          </div>
+          <p className="text-2xl font-bold text-green-600">{dashboardStats.completedTodos}</p>
+          {dashboardStats.totalTodos > 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              {Math.round((dashboardStats.completedTodos / dashboardStats.totalTodos) * 100)}% 完成率
+            </p>
+          )}
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-500">进行中</p>
+            <TrendingUp className="h-4 w-4 text-yellow-500" />
+          </div>
+          <p className="text-2xl font-bold text-yellow-600">{dashboardStats.pendingTodos}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-500">逾期待办</p>
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+          </div>
+          <p className="text-2xl font-bold text-red-600">{dashboardStats.overdueTodos}</p>
+          {dashboardStats.overdueTodos > 0 && (
+            <button
+              onClick={() => navigate('/reminders')}
+              className="text-xs text-red-600 hover:text-red-700 mt-1"
+            >
+              查看 →
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">近 7 天会议数量</h3>
+          <div className="flex items-end justify-between gap-2 h-32">
+            {dashboardStats.meetingsLast7Days.map((day, idx) => (
+              <div key={idx} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full flex items-end justify-center h-24">
+                  <div
+                    className="w-full max-w-[32px] bg-indigo-500 rounded-t transition-all hover:bg-indigo-600 relative group"
+                    style={{ height: `${(day.count / maxMeetings) * 100}%`, minHeight: day.count > 0 ? '8px' : '4px' }}
+                  >
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {day.count} 场
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-500">{formatChartDate(day.date)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">按负责人统计待办</h3>
+          {dashboardStats.todosByAssignee.length === 0 ? (
+            <p className="text-gray-400 text-center py-8 text-sm">暂无数据</p>
+          ) : (
+            <div className="space-y-3">
+              {dashboardStats.todosByAssignee.map((item) => {
+                const maxCount = Math.max(...dashboardStats.todosByAssignee.map((a) => a.total), 1);
+                const pendingPercent = (item.pending / maxCount) * 100;
+                return (
+                  <div key={item.assignee}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <User className="h-3 w-3 text-indigo-600" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{item.assignee}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-green-600">{item.completed}完成</span>
+                        <span className="text-gray-400">/</span>
+                        <span className="text-yellow-600">{item.pending}待办</span>
+                        {item.overdue > 0 && (
+                          <>
+                            <span className="text-gray-400">/</span>
+                            <span className="text-red-600">{item.overdue}逾期</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full bg-green-500"
+                        style={{ width: `${(item.completed / maxCount) * 100}%` }}
+                      ></div>
+                      <div
+                        className="h-2 rounded-full bg-yellow-500 -mt-2"
+                        style={{ width: `${pendingPercent}%`, marginLeft: `${(item.completed / maxCount) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -38,6 +196,8 @@ export default function Home() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">会议列表</h1>
         <p className="text-gray-600">管理所有会议纪要和待办事项</p>
       </div>
+
+      <Dashboard />
 
       {loading && meetings.length === 0 ? (
         <div className="text-center py-12">加载中...</div>

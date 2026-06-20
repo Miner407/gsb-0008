@@ -127,7 +127,7 @@ export default function MeetingForm({ mode }: MeetingFormProps) {
       conclusion: conclusion.trim() || undefined,
       participants: validParticipants,
       topics: validTopics,
-      todos: validTodos.map(({ topic_index, ...rest }) => ({
+      todos: validTodos.map(({ topic_index: _topic_index, ...rest }) => ({
         ...rest,
         status: rest.status || 'pending',
       })) as TodoItem[],

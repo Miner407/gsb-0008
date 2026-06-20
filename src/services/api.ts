@@ -1,4 +1,4 @@
-import type { Meeting, TodoItem, ApiResponse, TodoFilter, Pagination } from '@/types';
+import type { Meeting, TodoItem, ApiResponse, TodoFilter, DashboardStats, TodoReminders } from '@/types';
 
 const API_BASE = '/api';
 
@@ -35,6 +35,21 @@ export const meetingApi = {
     request(`/meetings/${id}`, {
       method: 'DELETE',
     }),
+
+  export: async (id: number, format = 'markdown'): Promise<void> => {
+    const response = await fetch(`/api/meetings/${id}/export?format=${format}`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+    a.download = filenameMatch ? decodeURIComponent(filenameMatch[1]) : `meeting_${id}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export const todoApi = {
@@ -67,6 +82,32 @@ export const todoApi = {
     request(`/todos/${id}`, {
       method: 'DELETE',
     }),
+
+  batchUpdateStatus: (ids: number[], status: string, completion_note?: string): Promise<ApiResponse<{ updated: number }>> =>
+    request('/todos/batch-update-status', {
+      method: 'POST',
+      body: JSON.stringify({ ids, status, completion_note }),
+    }),
+
+  batchUpdateAssignee: (ids: number[], assignee: string): Promise<ApiResponse<{ updated: number }>> =>
+    request('/todos/batch-update-assignee', {
+      method: 'POST',
+      body: JSON.stringify({ ids, assignee }),
+    }),
+
+  batchDelete: (ids: number[]): Promise<ApiResponse<{ deleted: number }>> =>
+    request('/todos/batch-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+};
+
+export const statsApi = {
+  getDashboard: (): Promise<ApiResponse<DashboardStats>> =>
+    request('/stats/dashboard'),
+
+  getTodoReminders: (): Promise<ApiResponse<TodoReminders>> =>
+    request('/stats/todo-reminders'),
 };
 
 export const isOverdue = (todo: TodoItem): boolean => {

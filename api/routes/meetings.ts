@@ -291,4 +291,116 @@ router.delete('/:id', (req: Request, res: Response) => {
   }
 });
 
+router.get('/:id/export', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { format = 'markdown' } = req.query;
+
+  const meetingStmt = db.prepare('SELECT * FROM meetings WHERE id = ?');
+  const participantsStmt = db.prepare('SELECT * FROM participants WHERE meeting_id = ? ORDER BY id');
+  const topicsStmt = db.prepare('SELECT * FROM topics WHERE meeting_id = ? ORDER BY sort_order, id');
+  const todosStmt = db.prepare(`
+    SELECT t.*, tp.title as topic_title
+    FROM todo_items t
+    LEFT JOIN topics tp ON t.topic_id = tp.id
+    WHERE t.meeting_id = ?
+    ORDER BY t.created_at DESC
+  `);
+
+  const meeting = meetingStmt.get(id) as Record<string, unknown> | undefined;
+  if (!meeting) {
+    return res.status(404).json({ success: false, error: '会议不存在' });
+  }
+
+  const participants = participantsStmt.all(id) as Array<{ name: string; role?: string }>;
+  const topics = topicsStmt.all(id) as Array<{
+    title: string;
+    description?: string;
+    discussion?: string;
+  }>;
+  const todos = todosStmt.all(id) as Array<{
+    title: string;
+    description?: string;
+    assignee: string;
+    due_date?: string;
+    status: string;
+    completion_note?: string;
+    topic_title?: string;
+  }>;
+
+  const statusMap: Record<string, string> = {
+    pending: '待处理',
+    in_progress: '进行中',
+    completed: '已完成',
+    cancelled: '已取消',
+  };
+
+  const formatDate = (dateStr: unknown): string => {
+    if (!dateStr) return '-';
+    const date = new Date(String(dateStr));
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
+  if (format === 'markdown') {
+    let md = `# ${meeting.title}\n\n`;
+
+    md += `## 基本信息\n\n`;
+    md += `- **日期**: ${formatDate(meeting.meeting_date)}\n`;
+    if (meeting.location) md += `- **地点**: ${meeting.location}\n`;
+    md += `\n`;
+
+    md += `## 参会人员\n\n`;
+    if (participants.length > 0) {
+      participants.forEach((p, idx) => {
+        md += `${idx + 1}. **${p.name}**${p.role ? ` - ${p.role}` : ''}\n`;
+      });
+    } else {
+      md += `暂无参会人员\n`;
+    }
+    md += `\n`;
+
+    md += `## 议题\n\n`;
+    if (topics.length > 0) {
+      topics.forEach((topic, idx) => {
+        md += `### ${idx + 1}. ${topic.title}\n\n`;
+        if (topic.description) {
+          md += `**议题描述**:\n${topic.description}\n\n`;
+        }
+        if (topic.discussion) {
+          md += `**讨论内容**:\n${topic.discussion}\n\n`;
+        }
+      });
+    } else {
+      md += `暂无议题\n\n`;
+    }
+
+    md += `## 会议结论\n\n`;
+    md += meeting.conclusion ? `${meeting.conclusion}\n\n` : `暂无会议结论\n\n`;
+
+    md += `## 待办事项\n\n`;
+    if (todos.length > 0) {
+      md += `| 序号 | 待办事项 | 负责人 | 截止日期 | 状态 | 完成备注 | 关联议题 |\n`;
+      md += `| --- | --- | --- | --- | --- | --- | --- |\n`;
+      todos.forEach((todo, idx) => {
+        md += `| ${idx + 1} | ${todo.title}${todo.description ? `<br><small>${todo.description}</small>` : ''} | ${todo.assignee} | ${formatDate(todo.due_date)} | ${statusMap[todo.status] || todo.status} | ${todo.completion_note || '-'} | ${todo.topic_title || '-'} |\n`;
+      });
+    } else {
+      md += `暂无待办事项\n`;
+    }
+    md += `\n`;
+
+    const filename = encodeURIComponent(`会议纪要_${String(meeting.title).replace(/[\\/:*?"<>|]/g, '_')}_${String(meeting.meeting_date)}.md`);
+
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(md);
+  }
+
+  return res.status(400).json({ success: false, error: '不支持的导出格式' });
+});
+
 export default router;

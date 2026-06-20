@@ -14,10 +14,11 @@ import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import meetingRoutes from './routes/meetings.js'
 import todoRoutes from './routes/todos.js'
+import statsRoutes from './routes/stats.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+void path.dirname(__filename)
 
 // load env
 dotenv.config()
@@ -34,13 +35,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use('/api/auth', authRoutes)
 app.use('/api/meetings', meetingRoutes)
 app.use('/api/todos', todoRoutes)
+app.use('/api/stats', statsRoutes)
 
 /**
  * health
  */
 app.use(
   '/api/health',
-  (req: Request, res: Response, next: NextFunction): void => {
+  (req: Request, res: Response): void => {
     res.status(200).json({
       success: true,
       message: 'ok',
@@ -51,7 +53,7 @@ app.use(
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Server error:', error)
   res.status(500).json({
     success: false,

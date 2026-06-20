@@ -1,12 +1,14 @@
 import { create } from 'zustand';
-import { meetingApi, todoApi } from '@/services/api';
-import type { Meeting, TodoItem, TodoFilter } from '@/types';
+import { meetingApi, todoApi, statsApi } from '@/services/api';
+import type { Meeting, TodoItem, TodoFilter, DashboardStats, TodoReminders } from '@/types';
 
 interface MeetingState {
   meetings: Meeting[];
   currentMeeting: Meeting | null;
   todos: TodoItem[];
   assignees: string[];
+  dashboardStats: DashboardStats | null;
+  todoReminders: TodoReminders | null;
   loading: boolean;
   error: string | null;
   pagination: {
@@ -20,10 +22,16 @@ interface MeetingState {
   createMeeting: (data: Partial<Meeting>) => Promise<number | null>;
   updateMeeting: (id: number, data: Partial<Meeting>) => Promise<boolean>;
   deleteMeeting: (id: number) => Promise<boolean>;
+  exportMeeting: (id: number) => Promise<void>;
   fetchTodos: (filter?: TodoFilter) => Promise<void>;
   updateTodoStatus: (id: number, status: string, completion_note?: string) => Promise<boolean>;
   updateTodo: (id: number, data: Partial<TodoItem>) => Promise<boolean>;
   deleteTodo: (id: number) => Promise<boolean>;
+  batchUpdateTodoStatus: (ids: number[], status: string, completion_note?: string) => Promise<boolean>;
+  batchUpdateTodoAssignee: (ids: number[], assignee: string) => Promise<boolean>;
+  batchDeleteTodos: (ids: number[]) => Promise<boolean>;
+  fetchDashboardStats: () => Promise<void>;
+  fetchTodoReminders: () => Promise<void>;
   clearCurrentMeeting: () => void;
 }
 
@@ -32,6 +40,8 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
   currentMeeting: null,
   todos: [],
   assignees: [],
+  dashboardStats: null,
+  todoReminders: null,
   loading: false,
   error: null,
   pagination: {
@@ -53,7 +63,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
       } else {
         set({ error: response.error || '获取会议列表失败' });
       }
-    } catch (error) {
+    } catch (_error) {
       set({ error: '网络错误' });
     } finally {
       set({ loading: false });
@@ -69,7 +79,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
       } else {
         set({ error: response.error || '获取会议详情失败' });
       }
-    } catch (error) {
+    } catch (_error) {
       set({ error: '网络错误' });
     } finally {
       set({ loading: false });
@@ -86,7 +96,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         set({ error: response.error || '创建会议失败' });
         return null;
       }
-    } catch (error) {
+    } catch (_error) {
       set({ error: '网络错误' });
       return null;
     } finally {
@@ -104,7 +114,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         set({ error: response.error || '更新会议失败' });
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       set({ error: '网络错误' });
       return false;
     } finally {
@@ -122,7 +132,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         set({ error: response.error || '删除会议失败' });
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       set({ error: '网络错误' });
       return false;
     } finally {
@@ -143,7 +153,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
       } else {
         set({ error: response.error || '获取待办列表失败' });
       }
-    } catch (error) {
+    } catch (_error) {
       set({ error: '网络错误' });
     } finally {
       set({ loading: false });
@@ -172,7 +182,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         return true;
       }
       return false;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -184,7 +194,7 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         return true;
       }
       return false;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -199,8 +209,110 @@ export const useMeetingStore = create<MeetingState>((set, get) => ({
         return true;
       }
       return false;
-    } catch (error) {
+    } catch (_error) {
       return false;
+    }
+  },
+
+  exportMeeting: async (id: number) => {
+    try {
+      await meetingApi.export(id);
+    } catch (_error) {
+      set({ error: '导出会议纪要失败' });
+    }
+  },
+
+  batchUpdateTodoStatus: async (ids: number[], status: string, completion_note?: string) => {
+    try {
+      const response = await todoApi.batchUpdateStatus(ids, status, completion_note);
+      if (response.success) {
+        set((state) => ({
+          todos: state.todos.map((todo) =>
+            ids.includes(todo.id!) ? { ...todo, status: status as TodoItem['status'], completion_note } : todo
+          ),
+        }));
+        if (get().currentMeeting?.todos) {
+          set((state) => ({
+            currentMeeting: {
+              ...state.currentMeeting!,
+              todos: state.currentMeeting!.todos!.map((todo) =>
+                ids.includes(todo.id!) ? { ...todo, status: status as TodoItem['status'], completion_note } : todo
+              ),
+            },
+          }));
+        }
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
+  },
+
+  batchUpdateTodoAssignee: async (ids: number[], assignee: string) => {
+    try {
+      const response = await todoApi.batchUpdateAssignee(ids, assignee);
+      if (response.success) {
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
+  },
+
+  batchDeleteTodos: async (ids: number[]) => {
+    try {
+      const response = await todoApi.batchDelete(ids);
+      if (response.success) {
+        set((state) => ({
+          todos: state.todos.filter((todo) => !ids.includes(todo.id!)),
+        }));
+        if (get().currentMeeting?.todos) {
+          set((state) => ({
+            currentMeeting: {
+              ...state.currentMeeting!,
+              todos: state.currentMeeting!.todos!.filter((todo) => !ids.includes(todo.id!)),
+            },
+          }));
+        }
+        return true;
+      }
+      return false;
+    } catch (_error) {
+      return false;
+    }
+  },
+
+  fetchDashboardStats: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await statsApi.getDashboard();
+      if (response.success) {
+        set({ dashboardStats: response.data || null });
+      } else {
+        set({ error: response.error || '获取统计数据失败' });
+      }
+    } catch (_error) {
+      set({ error: '网络错误' });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchTodoReminders: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await statsApi.getTodoReminders();
+      if (response.success) {
+        set({ todoReminders: response.data || null });
+      } else {
+        set({ error: response.error || '获取待办提醒失败' });
+      }
+    } catch (_error) {
+      set({ error: '网络错误' });
+    } finally {
+      set({ loading: false });
     }
   },
 

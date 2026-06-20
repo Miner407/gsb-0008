@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, CheckSquare, Plus } from 'lucide-react';
+import { CalendarDays, CheckSquare, Plus, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Navbar() {
@@ -41,6 +41,20 @@ export default function Navbar() {
               >
                 <CheckSquare className="h-4 w-4 mr-1.5" />
                 待办事项
+              </NavLink>
+              <NavLink
+                to="/reminders"
+                className={({ isActive }) =>
+                  cn(
+                    'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'border-indigo-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  )
+                }
+              >
+                <BellRing className="h-4 w-4 mr-1.5" />
+                待办提醒
               </NavLink>
             </div>
           </div>

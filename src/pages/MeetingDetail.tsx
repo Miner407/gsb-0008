@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Edit2, Calendar, MapPin, Users, FileText, CheckSquare, MessageSquare, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit2, Calendar, MapPin, Users, FileText, CheckSquare, MessageSquare, ExternalLink, Download } from 'lucide-react';
 import { useMeetingStore } from '@/store/meetingStore';
 import { formatDate, isOverdue } from '@/services/api';
 import StatusBadge from '@/components/StatusBadge';
 import Empty from '@/components/Empty';
-import type { TodoItem } from '@/types';
 
 export default function MeetingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentMeeting, fetchMeetingDetail, updateTodoStatus, loading, error, clearCurrentMeeting } = useMeetingStore();
+  const { currentMeeting, fetchMeetingDetail, updateTodoStatus, exportMeeting, loading, error, clearCurrentMeeting } = useMeetingStore();
   const [editingTodo, setEditingTodo] = useState<number | null>(null);
   const [completionNote, setCompletionNote] = useState('');
 
@@ -89,13 +88,22 @@ export default function MeetingDetail() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => navigate(`/meetings/${id}/edit`)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Edit2 className="h-4 w-4 mr-1.5" />
-            编辑会议
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => exportMeeting(Number(id))}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Download className="h-4 w-4 mr-1.5" />
+              导出 Markdown
+            </button>
+            <button
+              onClick={() => navigate(`/meetings/${id}/edit`)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Edit2 className="h-4 w-4 mr-1.5" />
+              编辑会议
+            </button>
+          </div>
         </div>
       </div>
 

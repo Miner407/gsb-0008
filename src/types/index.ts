@@ -67,3 +67,36 @@ export interface TodoFilter {
   page?: number;
   pageSize?: number;
 }
+
+export interface DashboardStats {
+  totalMeetings: number;
+  totalTodos: number;
+  completedTodos: number;
+  pendingTodos: number;
+  overdueTodos: number;
+  todosByAssignee: Array<{
+    assignee: string;
+    total: number;
+    completed: number;
+    pending: number;
+    overdue: number;
+  }>;
+  meetingsLast7Days: Array<{
+    date: string;
+    count: number;
+  }>;
+}
+
+export interface TodoReminders {
+  today: TodoItem[];
+  inThreeDays: TodoItem[];
+  overdue: TodoItem[];
+  completed: TodoItem[];
+}
+
+export interface BatchTodoUpdate {
+  ids: number[];
+  status?: string;
+  assignee?: string;
+  completion_note?: string;
+}

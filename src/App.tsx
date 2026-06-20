@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import Home from "@/pages/Home";
 import MeetingDetail from "@/pages/MeetingDetail";
 import TodoList from "@/pages/TodoList";
+import TodoReminders from "@/pages/TodoReminders";
 import MeetingForm from "@/components/MeetingForm";
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
             <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/meetings/:id/edit" element={<MeetingForm mode="edit" />} />
             <Route path="/todos" element={<TodoList />} />
+            <Route path="/reminders" element={<TodoReminders />} />
           </Routes>
         </main>
       </div>

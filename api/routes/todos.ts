@@ -214,4 +214,77 @@ router.delete('/:id', (req: Request, res: Response) => {
   }
 });
 
+router.post('/batch-update-status', (req: Request, res: Response) => {
+  const { ids, status, completion_note } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, error: '请选择至少一个待办事项' });
+  }
+
+  if (!status) {
+    return res.status(400).json({ success: false, error: '状态不能为空' });
+  }
+
+  const placeholders = ids.map(() => '?').join(',');
+  const stmt = db.prepare(`
+    UPDATE todo_items
+    SET status = ?, completion_note = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id IN (${placeholders})
+  `);
+
+  try {
+    stmt.run(status, completion_note || null, ...ids);
+    res.json({ success: true, data: { updated: ids.length } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: '批量更新状态失败' });
+  }
+});
+
+router.post('/batch-update-assignee', (req: Request, res: Response) => {
+  const { ids, assignee } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, error: '请选择至少一个待办事项' });
+  }
+
+  if (!assignee) {
+    return res.status(400).json({ success: false, error: '负责人不能为空' });
+  }
+
+  const placeholders = ids.map(() => '?').join(',');
+  const stmt = db.prepare(`
+    UPDATE todo_items
+    SET assignee = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id IN (${placeholders})
+  `);
+
+  try {
+    stmt.run(assignee, ...ids);
+    res.json({ success: true, data: { updated: ids.length } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: '批量设置负责人失败' });
+  }
+});
+
+router.post('/batch-delete', (req: Request, res: Response) => {
+  const { ids } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, error: '请选择至少一个待办事项' });
+  }
+
+  const placeholders = ids.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM todo_items WHERE id IN (${placeholders})`);
+
+  try {
+    stmt.run(...ids);
+    res.json({ success: true, data: { deleted: ids.length } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: '批量删除失败' });
+  }
+});
+
 export default router;
